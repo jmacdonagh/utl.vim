@@ -266,6 +266,27 @@ endfu
 
 
 "------------------------------------------------------------------------------
+" Escape unsafe characters in given string, 
+" e.g. transform `10% is enough' to `10%25%20is%20enough'.
+"
+" (see <URL:http://www.ietf.org/rfc/rfc2396.txt#2. URI Characters and Escape Sequences>)
+"
+fu! UtlUri_escape(str)
+    let result=''
+
+    for i in range(len(a:str))
+        if a:str[i] =~# '^[a-zA-Z0-9_.~-]$'
+            let result .= a:str[i]
+        else
+            let result .= printf('%%%02X', char2nr(a:str[i]))
+        endif
+    endfor
+
+    return result
+endfu
+
+
+"------------------------------------------------------------------------------
 " Unescape unsafe characters in given string, 
 " e.g. transform `10%25%20is%20enough' to `10% is enough'.
 " 

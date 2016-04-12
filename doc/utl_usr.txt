@@ -608,8 +608,20 @@ then switch to the other Vim instance and perform:
 
     :Utl openLink <URL pasted from clipboard>
 
-This example also introduced the  currentFile  operand (you already know
-underCursor, visual, <typed URL>).
+It's also possible to create a link to the current file and have Vim search for
+the text under the cursor when the link was created:
+
+    :Utl copyLink currentFileAndLineContents
+
+For example, if this is executed while in the file /some/file and the line of
+text under the cursor is "some text" (without quotes), then the copied link
+will be file:///some/file#tn=some%20text. See |utl-tutfrags| for more details on the
+#tn= fragment. When this link is opened by Utl.vim, it will open the file and
+search for "some text", placing the cursor on the first match. The search
+string will not include any leading or trailing whitespace.
+
+These examples introduced the  currentFile  and  currentFileAndLineContents  operands
+(you already know underCursor, visual, <typed URL>).
 
 
 COPYFILENAME						*utl-tutCopyFileName*

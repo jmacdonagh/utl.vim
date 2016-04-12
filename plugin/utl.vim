@@ -88,7 +88,7 @@ fu! s:completeArgs(dummy_argLead, cmdLine, dummy_cursorPos)
     if len(utlArgs)==2
 	if utlArgs[1]=='openLink' || utlArgs[1]=='copyFileName' || utlArgs[1]=='copyLink'
 	    if len(utlArgs)==2
-		return "underCursor\nvisual\ncurrentFile\n_your_URL_here"   
+		return "underCursor\nvisual\ncurrentFile\ncurrentFileAndLineContents\n_your_URL_here"
 	    endif
 	elseif utlArgs[1]=='help'
 	    if len(utlArgs)==2
@@ -130,11 +130,13 @@ endfun
 "    :Utl copyLink	[underCursor]
 "    :Utl               visual
 "    :Utl               currentFile
+"    :Utl               currentFileAndLineContents
 "    :Utl               <my_url>
 "
-"    :Utl copyFileName	[underCursor]	[native]
-"    :Utl	        currentFile	backSlash
-"    :Utl		Visual		slash
+"    :Utl copyFileName	[underCursor]			[native]
+"    :Utl	        currentFile			backSlash
+"    :Utl	        currentFileAndLineContents	slash
+"    :Utl		Visual
 "    :Utl		<my_url>
 "
 "    :Utl help		[manual]
@@ -155,7 +157,7 @@ endfun
 " change as long as the values are valid long arguments.)
 "
 let s:d1= { 'o': 'openLink', 'ol': 'openLink', 'cl': 'copyLink', 'cf': 'copyFileName', 'cfn': 'copyFileName', 'h': 'help' }
-let s:d21={ 'u': 'underCursor', 'uc': 'underCursor', 'v': 'visual', 'c': 'currentFile', 'cf': 'currentFile' }
+let s:d21={ 'u': 'underCursor', 'uc': 'underCursor', 'v': 'visual', 'c': 'currentFile', 'cf': 'currentFile', 'cflc': 'currentFileAndLineContents' }
 let s:d22={ 'm': 'manual', 'c': 'commands' }
 let s:d31={ 'e': 'edit', 's': 'split', 'vs': 'vsplit', 't': 'tabedit', 'te': 'tabedit', 'vi': 'view',  'r': 'read' }
 let s:d32={ 'n': 'native', 'b': 'backSlash', 'bs': 'backSlash', 's': 'slash' }
@@ -247,6 +249,10 @@ fu! Utl(...)
 	elseif operand=='currentFile'
 	    let url = 'file://'.Utl_utilBack2FwdSlashes( expand("%:p") )
 	    call s:Utl_processUrl(url, cmd.suffix)
+	elseif operand=='currentFileAndLineContents'
+	    let fragment = escape(substitute(getline('.'), '^\s*\(.\{-}\)\s*$', '\1', ''), '^$\')
+	    let url = UtlUri_build_2('file://'.Utl_utilBack2FwdSlashes( expand("%:p") ), 'tn='.UtlUri_escape(fragment))
+	    call s:Utl_processUrl(url, cmd.'AndFragment'.suffix)
         else	" the operand is the URL
 	    call Utl_trace("- `".operand."' (arg2) is not a keyword. So is directly taken as an URL")
 	    call s:Utl_processUrl(operand, cmd.suffix)
@@ -698,6 +704,12 @@ fu! s:Utl_processUrl(uriref, dispMode)
 	echo "Copied `".@*."' to clipboard"
 	call Utl_trace("- end processing URL",1,-1)
 	return
+    elseif a:dispMode==? 'copyLinkAndFragment'
+	call Utl_trace("processing mode is `copyLinkAndFragment'. Copy link and fragment to clipboard")
+	call setreg('*', UtlUri_build_2(absuri, fragment))
+	echo "Copied `".@*."' to clipboard"
+	call Utl_trace("- end processing URL",1,-1)
+	return
     endif
 
 
@@ -749,27 +761,43 @@ fu! s:Utl_processUrl(uriref, dispMode)
     call Utl_trace("- end scheme handler processing",1,-1)
 
     let dispMode = a:dispMode
-    if a:dispMode == 'copyFileName_native'
+
+    let cfnPrefix = ''
+    if dispMode =~ '^copyFileName_'
+	let cfnPrefix = 'copyFileName'
+    elseif dispMode =~ '^copyFileNameAndFragment_'
+	let cfnPrefix = 'copyFileNameAndFragment'
+    endif
+
+    if a:dispMode == cfnPrefix.'_native'
 	if has("win32") || has("win16") || has("win64") || has("dos32") || has("dos16")
-	    call Utl_trace("- changing dispMode `copyFileName_native' to 'copyFileName_backSlash' since under Windows")
-	    let dispMode = 'copyFileName_backSlash'
+	    let dispMode = cfnPrefix.'_backSlash'
+	    call Utl_trace("- changing dispMode `".a:dispMode."' to '".dispMode."' since under Windows")
 	else
-	    call Utl_trace("- changing dispMode `copyFileName_native' to 'copyFileName_slash' since not under Windows")
-	    let dispMode = 'copyFileName_slash'
+	    let dispMode = cfnPrefix.'_slash'
+	    call Utl_trace("- changing dispMode `".a:dispMode."' to '".dispMode."' since not under Windows")
 	endif
     endif
 
-    if dispMode == 'copyFileName_slash'
-	call Utl_trace("- processing mode is `copyFileName_slash': copy file name, which corresponds to link")
+    if dispMode == cfnPrefix.'_slash'
+	call Utl_trace("- processing mode is `".dispMode."': copy file name, which corresponds to link")
 	call Utl_trace("  (with forward slashes) to clipboard")
-	call setreg('*', localPath )
+	if cfnPrefix == 'copyFileName'
+	    call setreg('*', localPath )
+	else
+	    call setreg('*', UtlUri_build_2(localPath, fragment) )
+	endif
 	echo "Copied `".@*."' to clipboard"
 	call Utl_trace("- end processing URL",1,-1)
 	return
-    elseif dispMode == 'copyFileName_backSlash'
-	call Utl_trace("- processing mode is `copyFileName_backSlash': copy file name, which corresponds to link")
+    elseif dispMode == cfnPrefix.'_backSlash'
+	call Utl_trace("- processing mode is `".dispMode."': copy file name, which corresponds to link")
 	call Utl_trace("  (with backslashes) to clipboard")
-	call setreg('*', Utl_utilFwd2BackSlashes(localPath) )
+	if cfnPrefix == 'copyFileName'
+	    call setreg('*', Utl_utilFwd2BackSlashes(localPath) )
+	else
+	    call setreg('*', UtlUri_build_2(Utl_utilFwd2BackSlashes(localPath), fragment) )
+	endif
 	echo "Copied `".@*."' to clipboard"
 	call Utl_trace("- end processing URL",1,-1)
 	return
