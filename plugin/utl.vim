@@ -746,6 +746,10 @@ fu! s:Utl_processUrl(uriref, dispMode)
     endif
 
     let localPath = ret[0]
+    if exists("g:utl_local_path_modify")
+	let localPath = fnamemodify(localPath, g:utl_local_path_modify)
+    endif
+
     let fragMode = get(ret, 1, 'abs')
     call Utl_trace("- first list element (local path): `".localPath."'")
     call Utl_trace("- second list element (fragment mode) or default: `".fragMode."'") 

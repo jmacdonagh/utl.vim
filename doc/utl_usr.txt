@@ -668,6 +668,13 @@ For reference of all available commands and arguments see:
 
     :Utl help commands
 
+It's possible to automatically modify the copied file name when it is saved.
+If g:utl_local_path_modify is set, then it is used as the {mods} argument to
+|fnamemodify()|. For example, to attempt to make all links relative to the current
+working directory when saved, set:
+
+    let g:utl_local_path_modify = ':.'
+
 
 3.13 The http scheme					*utl-tutscmhttp*
 
